@@ -80,4 +80,59 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   res.json({ message: 'Product deleted' });
 });
 
+// LIST products (public) - supports pagination, filtering, search, sorting
+router.get('/', async (req, res) => {
+  const {
+    page = 1,
+    limit = 12,
+    category_id,
+    min_price,
+    max_price,
+    search,
+    sort = 'created_at',
+    order = 'desc'
+  } = req.query;
+
+  const from = (page - 1) * limit;
+  const to = from + Number(limit) - 1;
+
+  let query = supabase
+    .from('products')
+    .select('*, product_images(url), categories(name)', { count: 'exact' });
+
+  if (category_id) query = query.eq('category_id', category_id);
+  if (min_price) query = query.gte('price', min_price);
+  if (max_price) query = query.lte('price', max_price);
+  if (search) query = query.ilike('name', `%${search}%`);
+
+  query = query.order(sort, { ascending: order === 'asc' }).range(from, to);
+
+  const { data, error, count } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({
+    products: data,
+    pagination: {
+      total: count,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(count / limit)
+    }
+  });
+});
+
+// GET single product (public)
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  const { data, error } = await supabase
+    .from('products')
+    .select('*, product_images(url), categories(name)')
+    .eq('id', id)
+    .single();
+
+  if (error) return res.status(404).json({ error: 'Product not found' });
+  res.json(data);
+});
+
 module.exports = router;
