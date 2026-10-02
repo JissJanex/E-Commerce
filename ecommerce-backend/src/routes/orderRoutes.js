@@ -36,7 +36,7 @@ router.post('/checkout', authenticate, async (req, res) => {
     });
 
     // record a pending payment row
-    await supabase.from('payments').insert({
+    const { error: paymentInsertError } = await supabase.from('payments').insert({
       order_id: orderId,
       provider: 'razorpay',
       transaction_id: rzpOrder.id,
@@ -44,6 +44,10 @@ router.post('/checkout', authenticate, async (req, res) => {
       amount: order.total_amount
     });
 
+    if (paymentInsertError) {
+      console.error('Failed to insert payment row:', paymentInsertError.message);
+      return res.status(500).json({ error: 'Failed to record payment' });
+}
     // send frontend what it needs to open Razorpay checkout
     res.status(201).json({
       message: 'Order placed, proceed to payment',
