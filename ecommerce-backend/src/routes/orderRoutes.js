@@ -1,5 +1,6 @@
 const express = require('express');
 const supabase = require('../config/supabaseClient');
+const razorpay = require('../config/razorpayClient');
 const { authenticate } = require('../middleware/authMiddleware');
 const router = express.Router();
 
@@ -15,7 +16,46 @@ router.post('/checkout', authenticate, async (req, res) => {
 
   if (error) return res.status(400).json({ error: error.message });
 
-  res.status(201).json({ message: 'Order placed', order_id: data[0].order_id });
+  const orderId = data[0].order_id;
+
+  // fetch the order total to charge
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .select('total_amount')
+    .eq('id', orderId)
+    .single();
+  if (orderError) return res.status(500).json({ error: orderError.message });
+
+  // create a Razorpay order for that amount
+  try {
+    const rzpOrder = await razorpay.orders.create({
+      amount: Math.round(order.total_amount * 100), // paise
+      currency: 'INR',
+      receipt: `order_${orderId}`,
+      notes: { order_id: orderId.toString(), user_id: req.user.id }
+    });
+
+    // record a pending payment row
+    await supabase.from('payments').insert({
+      order_id: orderId,
+      provider: 'razorpay',
+      transaction_id: rzpOrder.id,
+      status: 'pending',
+      amount: order.total_amount
+    });
+
+    // send frontend what it needs to open Razorpay checkout
+    res.status(201).json({
+      message: 'Order placed, proceed to payment',
+      order_id: orderId,
+      razorpay_order_id: rzpOrder.id,
+      amount: rzpOrder.amount,
+      currency: rzpOrder.currency,
+      key_id: process.env.RAZORPAY_KEY_ID
+    });
+  } catch (rzpErr) {
+    res.status(500).json({ error: rzpErr.message });
+  }
 });
 
 // LIST current user's orders

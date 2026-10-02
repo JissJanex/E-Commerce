@@ -9,10 +9,14 @@ const categoryRoutes = require('./src/routes/categoryRoutes');
 const cartRoutes = require('./src/routes/cartRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
 const addressRoutes = require('./src/routes/addressRoutes');
+const webhookRoutes = require('./src/routes/webHookRoutes');
 
 const app = express();
 
 app.use(cors());
+
+app.use('/api/webhooks', webhookRoutes);
+
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
