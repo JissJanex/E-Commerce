@@ -20,18 +20,27 @@ router.post('/razorpay', express.raw({ type: 'application/json' }), async (req, 
 
   if (event.event === 'payment.captured') {
     const payment = event.payload.payment.entity;
-    const { data, error } = await supabase
-    .from('payments')
-    .update({ status: 'succeeded', razorpay_payment_id: payment.id })
-    .eq('razorpay_order_id', payment.order_id)
-    .select();
+    const orderId = payment.notes?.order_id;
 
-    console.log('Payments update result:', { data, error });
+    const { error: paymentUpdateError } = await supabase
+        .from('payments')
+        .update({ status: 'succeeded', razorpay_payment_id: payment.id })
+        .eq('razorpay_order_id', payment.order_id);
 
-    await supabase
-      .from('orders')
-      .update({ status: 'paid' })
-      .eq('id', payment.notes.order_id);
+    if (paymentUpdateError) {
+        console.error('Failed to update payment:', paymentUpdateError.message);
+    }
+
+    // This now deducts stock AND marks the order paid, atomically
+    const { error: confirmError } = await supabase.rpc('confirm_payment', {
+        p_order_id: orderId
+    });
+
+    if (confirmError) {
+        console.error('confirm_payment failed:', confirmError.message);
+        // Stock ran out between checkout and payment — order stays 'pending'
+        // You'll want to handle this case: notify admin, trigger a refund via Razorpay API, etc.
+    }
   }
 
   if (event.event === 'payment.failed') {
@@ -39,7 +48,7 @@ router.post('/razorpay', express.raw({ type: 'application/json' }), async (req, 
     await supabase
       .from('payments')
       .update({ status: 'failed', payment_id: payment.id })
-      .eq('transaction_id', payment.order_id);
+      .eq('razorpay_order_id', payment.order_id);
   }
 
   res.json({ status: 'ok' });
