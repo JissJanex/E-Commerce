@@ -20,10 +20,13 @@ router.post('/razorpay', express.raw({ type: 'application/json' }), async (req, 
 
   if (event.event === 'payment.captured') {
     const payment = event.payload.payment.entity;
-    await supabase
-      .from('payments')
-      .update({ status: 'succeeded', payment_id: payment.id })
-      .eq('transaction_id', payment.order_id);
+    const { data, error } = await supabase
+    .from('payments')
+    .update({ status: 'succeeded', razorpay_payment_id: payment.id })
+    .eq('razorpay_order_id', payment.order_id)
+    .select();
+
+    console.log('Payments update result:', { data, error });
 
     await supabase
       .from('orders')
