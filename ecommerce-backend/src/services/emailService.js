@@ -17,7 +17,7 @@ async function sendOrderConfirmationEmail({ toEmail, customerName, orderId, item
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Your Store <onboarding@resend.dev>', // swap to your verified domain later
+      from: 'E-Commerce <onboarding@resend.dev>', // swap to your verified domain later
       to: toEmail,
       subject: `Order Confirmed — #${orderId}`,
       html: `

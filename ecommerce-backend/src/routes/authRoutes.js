@@ -2,9 +2,10 @@ const express = require('express');
 const supabase = require('../config/supabaseClient');
 const authClient = supabase.authClient;
 const router = express.Router();
+const { authLimiter } = require('../middleware/rateLimiter');
 
 // SIGNUP
-router.post('/signup', async (req, res) => {
+router.post('/signup', authLimiter, async (req, res) => {
   const { email, password, name } = req.body;
 
   if (!email || !password || !name) {
@@ -31,7 +32,7 @@ router.post('/signup', async (req, res) => {
 });
 
 // LOGIN
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -47,11 +48,6 @@ router.post('/login', async (req, res) => {
     refresh_token: data.session.refresh_token,
     user: data.user
   });
-});
-
-// LOGOUT (optional — mostly a frontend concern: just discard the token)
-router.post('/logout', async (req, res) => {
-  res.json({ message: 'Logged out. Discard your token client-side.' });
 });
 
 module.exports = router;
