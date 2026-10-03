@@ -127,7 +127,7 @@ router.get('/:id', async (req, res) => {
 
   const { data, error } = await supabase
     .from('products')
-    .select('*, product_images(url), categories(name)')
+    .select('*, product_images(url), categories(name), reviews(rating, comment, user_id)')
     .eq('id', id)
     .single();
 

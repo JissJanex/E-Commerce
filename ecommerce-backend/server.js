@@ -10,6 +10,7 @@ const cartRoutes = require('./src/routes/cartRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
 const addressRoutes = require('./src/routes/addressRoutes');
 const webhookRoutes = require('./src/routes/webHookRoutes');
+const reviewRoutes = require('./src/routes/reviewRoutes');
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/addresses', addressRoutes);
+app.use('/api/products/:productId/reviews', reviewRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 

@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const supabase = require('../config/supabaseClient');
 const router = express.Router();
+const { sendOrderConfirmationEmail } = require('../services/emailService');
 
 router.post('/razorpay', express.raw({ type: 'application/json' }), async (req, res) => {
   const signature = req.headers['x-razorpay-signature'];
@@ -41,6 +42,39 @@ router.post('/razorpay', express.raw({ type: 'application/json' }), async (req, 
         // Stock ran out between checkout and payment — order stays 'pending'
         // You'll want to handle this case: notify admin, trigger a refund via Razorpay API, etc.
     }
+    else {
+    // Payment confirmed and stock deducted — now send the email
+    const { data: orderDetails } = await supabase
+      .from('orders')
+      .select('id, total_amount, user_id, order_items(quantity, price_at_purchase, products(name))')
+      .eq('id', orderId)
+      .single();
+
+    if (orderDetails) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', orderDetails.user_id)
+        .single();
+
+      // Get the user's email from auth (profiles table doesn't store email)
+      const { data: authUser } = await supabase.auth.admin.getUserById(orderDetails.user_id);
+
+      if (authUser?.user?.email) {
+        await sendOrderConfirmationEmail({
+          toEmail: authUser.user.email,
+          customerName: profile?.name || 'Customer',
+          orderId: orderDetails.id,
+          items: orderDetails.order_items.map((oi) => ({
+            name: oi.products.name,
+            quantity: oi.quantity,
+            price: oi.price_at_purchase
+          })),
+          totalAmount: orderDetails.total_amount
+        });
+      }
+    }
+  }
   }
 
   if (event.event === 'payment.failed') {

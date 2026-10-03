@@ -17,7 +17,8 @@
     "dotenv": "^18.0.4",
     "express": "^5.2.1",
     "multer": "^2.4.0",
-    "razorpay": "^2.9.8"
+    "razorpay": "^2.9.8",
+    "resend": "^6.32.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
